@@ -14,6 +14,7 @@ import {
   Comic_Neue
 } from "next/font/google";
 import "./globals.css";
+import { InstallPrompt } from "@/components/install-prompt";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -91,6 +92,7 @@ export const metadata: Metadata = {
   description: "Transform your photos with beautiful retro film filters. Free online photo editor with vintage effects.",
   keywords: ["photo editor", "retro", "vintage", "filters", "free"],
   authors: [{ name: "Prasenjit", url: "https://prasen.dev" }],
+  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },
@@ -101,6 +103,11 @@ export const metadata: Metadata = {
     title: "RetroClick - Vintage Photo Editor",
     description: "Transform your photos with beautiful retro film filters",
     type: "website",
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "RetroClick",
   },
 };
 
@@ -129,6 +136,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} ${playfair.variable} ${libreBaskerville.variable} ${ebGaramond.variable} ${dmSerif.variable} ${caveat.variable} ${dancingScript.variable} ${pacifico.variable} ${shadowsIntoLight.variable} ${indieFlower.variable} ${comicNeue.variable} antialiased font-sans`}>
         {children}
+        <InstallPrompt />
       </body>
     </html>
   );
