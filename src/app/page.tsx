@@ -48,7 +48,7 @@ export default function PhotoEditor() {
   const [title, setTitle] = useState("My Photo");
   const [textStyles, setTextStyles] = useState<string[]>([]);
   const [dateStyles, setDateStyles] = useState<string[]>([]);
-  const [font, setFont] = useState(FONTS[0].value);
+  const [font, setFont] = useState(FONTS[9].value); // Pacifico as default
   const [fontSize, setFontSize] = useState("18");
   const [date, setDate] = useState("");
   const [textColor, setTextColor] = useState("#0f0f0f");
@@ -87,7 +87,7 @@ export default function PhotoEditor() {
     setTitle("My Photo");
     setTextStyles([]);
     setDateStyles([]);
-    setFont(FONTS[0].value);
+    setFont(FONTS[9].value); // Pacifico
     setFontSize("18");
     setDate("");
     setTextColor("#0f0f0f");
