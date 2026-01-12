@@ -1,36 +1,64 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RetroClick
+
+A free online vintage photo editor with retro film filters. Transform your photos with beautiful polaroid-style effects.
+
+**Live Demo:** [retroclick.prasen.dev](https://retroclick.prasen.dev/)
+
+## Features
+
+- Upload and edit photos with zoom and pan support
+- Apply vintage filters (B&W, Sepia, Vintage, Warm, Cool, Fade, Vivid)
+- Customize text with 12+ font options including handwriting styles
+- Add titles and dates to your photos
+- Download as high-quality PNG with polaroid frame
+- Fully responsive - works on desktop and mobile
+- No sign-up required, completely free
+
+## Tech Stack
+
+- Next.js 16
+- React 19
+- Tailwind CSS 4
+- Radix UI Components
+- TypeScript
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build for production
+npm run build
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+src/
+├── app/
+│   ├── page.tsx        # Main photo editor component
+│   ├── layout.tsx      # Root layout with fonts and metadata
+│   └── globals.css     # Global styles
+├── components/
+│   └── ui/             # Reusable UI components
+└── lib/
+    └── utils.ts        # Utility functions
+```
 
-## Learn More
+## Author
 
-To learn more about Next.js, take a look at the following resources:
+Made by [Prasenjit](https://prasen.dev)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## License
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+MIT
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+*Built with [Blackbox AI](https://www.blackbox.ai/)*
