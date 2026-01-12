@@ -9,6 +9,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { SmoothCursor } from "@/components/smooth-cursor";
 
 const PRESET_COLORS = [
   "#0f0f0f", "#E74C3C", "#E67E22", "#F1C40F", "#2ECC71",
@@ -422,12 +423,26 @@ export default function PhotoEditor() {
 
   return (
     <TooltipProvider>
+      <SmoothCursor />
       <div className="min-h-screen min-h-[100dvh] bg-[#fafafa] relative overflow-x-hidden">
-        {/* Subtle gradient background */}
+        {/* Beautiful dot pattern background */}
+        <div 
+          className="fixed inset-0 pointer-events-none opacity-60"
+          style={{
+            backgroundImage: `radial-gradient(circle at 1px 1px, #d1d5db 1.5px, transparent 0)`,
+            backgroundSize: '20px 20px',
+          }}
+        />
+        {/* Soft color gradient overlays */}
         <div 
           className="fixed inset-0 pointer-events-none"
           style={{
-            background: 'radial-gradient(ellipse at 50% 0%, rgba(200, 200, 200, 0.15) 0%, transparent 60%)',
+            background: `
+              radial-gradient(ellipse 80% 50% at 50% -10%, rgba(244, 114, 182, 0.12) 0%, transparent 50%),
+              radial-gradient(ellipse 60% 40% at 90% 40%, rgba(167, 139, 250, 0.08) 0%, transparent 50%),
+              radial-gradient(ellipse 60% 40% at 10% 60%, rgba(96, 165, 250, 0.08) 0%, transparent 50%),
+              radial-gradient(ellipse 50% 30% at 50% 100%, rgba(251, 191, 36, 0.06) 0%, transparent 50%)
+            `,
           }}
         />
         
