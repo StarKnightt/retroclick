@@ -90,6 +90,12 @@ export const metadata: Metadata = {
   description: "Transform your photos with beautiful retro film filters. Free online photo editor with vintage effects.",
   keywords: ["photo editor", "retro", "vintage", "filters", "free"],
   authors: [{ name: "Prasenjit", url: "https://prasen.dev" }],
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/favicon.svg",
+  },
   openGraph: {
     title: "RetroClick - Vintage Photo Editor",
     description: "Transform your photos with beautiful retro film filters",
