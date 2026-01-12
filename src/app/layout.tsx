@@ -15,6 +15,7 @@ import {
 } from "next/font/google";
 import "./globals.css";
 import { InstallPrompt } from "@/components/install-prompt";
+import { Toaster } from "sonner";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -137,6 +138,21 @@ export default function RootLayout({
       <body className={`${inter.variable} ${playfair.variable} ${libreBaskerville.variable} ${ebGaramond.variable} ${dmSerif.variable} ${caveat.variable} ${dancingScript.variable} ${pacifico.variable} ${shadowsIntoLight.variable} ${indieFlower.variable} ${comicNeue.variable} antialiased font-sans`}>
         {children}
         <InstallPrompt />
+        <Toaster 
+          position="bottom-center"
+          toastOptions={{
+            style: {
+              background: '#171717',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '12px',
+              padding: '12px 16px',
+            },
+            classNames: {
+              description: '!text-neutral-300',
+            },
+          }}
+        />
       </body>
     </html>
   );

@@ -10,6 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SmoothCursor } from "@/components/smooth-cursor";
+import { toast } from "sonner";
 
 const PRESET_COLORS = [
   "#0f0f0f", "#E74C3C", "#E67E22", "#F1C40F", "#2ECC71",
@@ -46,6 +47,7 @@ const FILTERS = [
 export default function PhotoEditor() {
   const [title, setTitle] = useState("My Photo");
   const [textStyles, setTextStyles] = useState<string[]>([]);
+  const [dateStyles, setDateStyles] = useState<string[]>([]);
   const [font, setFont] = useState(FONTS[0].value);
   const [fontSize, setFontSize] = useState("18");
   const [date, setDate] = useState("");
@@ -84,6 +86,7 @@ export default function PhotoEditor() {
   const handleReset = useCallback(() => {
     setTitle("My Photo");
     setTextStyles([]);
+    setDateStyles([]);
     setFont(FONTS[0].value);
     setFontSize("18");
     setDate("");
@@ -97,11 +100,11 @@ export default function PhotoEditor() {
 
   // Zoom handlers
   const handleZoomIn = useCallback(() => {
-    setZoom(prev => Math.min(prev + 0.25, 3));
+    setZoom(prev => Math.min(prev + 0.1, 1.2));
   }, []);
 
   const handleZoomOut = useCallback(() => {
-    setZoom(prev => Math.max(prev - 0.25, 0.5));
+    setZoom(prev => Math.max(prev - 0.1, 0.5));
   }, []);
 
   const handleZoomReset = useCallback(() => {
@@ -174,8 +177,8 @@ export default function PhotoEditor() {
 
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      setZoom(prev => Math.max(0.5, Math.min(3, prev + delta)));
+      const delta = e.deltaY > 0 ? -0.05 : 0.05;
+      setZoom(prev => Math.max(0.5, Math.min(1.2, prev + delta)));
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
@@ -282,54 +285,100 @@ export default function PhotoEditor() {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      // Use original image dimensions for high quality export
-      // Calculate the visible area based on zoom and pan
-      const previewBoxAspect = 4 / 3; // aspect ratio of the preview box
+      // Match the CSS preview behavior exactly
+      // Preview uses: object-cover with transform: scale(zoom) translate(pan.x/zoom, pan.y/zoom)
+      
+      const previewBoxAspect = 4 / 3;
       const imgAspect = img.width / img.height;
       
-      let baseSourceW = img.width;
-      let baseSourceH = img.height;
-      let baseSourceX = 0;
-      let baseSourceY = 0;
+      // Calculate base source area (what object-cover shows at zoom=1)
+      let baseSourceW: number;
+      let baseSourceH: number;
+      let baseSourceX: number;
+      let baseSourceY: number;
       
-      // Crop to match preview aspect ratio
       if (imgAspect > previewBoxAspect) {
+        // Image is wider - crop sides
+        baseSourceH = img.height;
         baseSourceW = img.height * previewBoxAspect;
         baseSourceX = (img.width - baseSourceW) / 2;
+        baseSourceY = 0;
       } else {
+        // Image is taller - crop top/bottom
+        baseSourceW = img.width;
         baseSourceH = img.width / previewBoxAspect;
+        baseSourceX = 0;
         baseSourceY = (img.height - baseSourceH) / 2;
       }
       
-      // Apply zoom - smaller source area = more zoom
-      const zoomedSourceW = baseSourceW / zoom;
-      const zoomedSourceH = baseSourceH / zoom;
+      // When zoom > 1, we see LESS of the image (zoomed in)
+      // When zoom < 1, we see the same but scaled smaller (with potential background)
+      // The CSS uses scale(zoom), so at zoom=0.5, the image is 50% size
       
-      // Apply pan offset (convert from screen coords to source coords)
-      const previewWidth = 400; // reference preview width for pan calculation
-      const previewHeight = 300;
-      const panRatioX = pan.x / previewWidth;
-      const panRatioY = pan.y / previewHeight;
+      // For export, we want to capture what's visible:
+      // At zoom > 1: Take a smaller portion of the source (1/zoom of the base)
+      // At zoom = 1: Take the full base source
+      // At zoom < 1: Take the full base source (it's just displayed smaller in preview)
       
-      let sourceX = baseSourceX + (baseSourceW - zoomedSourceW) / 2 - panRatioX * zoomedSourceW;
-      let sourceY = baseSourceY + (baseSourceH - zoomedSourceH) / 2 - panRatioY * zoomedSourceH;
+      let sourceW: number;
+      let sourceH: number;
+      let sourceX: number;
+      let sourceY: number;
       
-      // Clamp source coordinates to valid range
-      sourceX = Math.max(0, Math.min(sourceX, img.width - zoomedSourceW));
-      sourceY = Math.max(0, Math.min(sourceY, img.height - zoomedSourceH));
+      if (zoom >= 1) {
+        // Zoomed in - take a smaller portion
+        sourceW = baseSourceW / zoom;
+        sourceH = baseSourceH / zoom;
+        
+        // Calculate center offset then apply pan
+        // Pan is in screen pixels, convert to source pixels
+        const panSourceX = (pan.x / zoom) * (sourceW / baseSourceW) * zoom;
+        const panSourceY = (pan.y / zoom) * (sourceH / baseSourceH) * zoom;
+        
+        sourceX = baseSourceX + (baseSourceW - sourceW) / 2 - panSourceX;
+        sourceY = baseSourceY + (baseSourceH - sourceH) / 2 - panSourceY;
+        
+        // Clamp to valid bounds
+        sourceX = Math.max(baseSourceX, Math.min(sourceX, baseSourceX + baseSourceW - sourceW));
+        sourceY = Math.max(baseSourceY, Math.min(sourceY, baseSourceY + baseSourceH - sourceH));
+      } else {
+        // Zoomed out - still use base source, but output will show it smaller with background
+        sourceW = baseSourceW;
+        sourceH = baseSourceH;
+        sourceX = baseSourceX;
+        sourceY = baseSourceY;
+      }
       
-      // Use the actual cropped/zoomed dimensions for the output
-      const imageAreaWidth = Math.round(zoomedSourceW);
-      const imageAreaHeight = Math.round(zoomedSourceH);
+      // Output dimensions - use source dimensions for high quality
+      // But cap at reasonable max to avoid huge files
+      const maxDimension = 4000;
+      let outputImageW = Math.round(sourceW);
+      let outputImageH = Math.round(sourceH);
       
-      // Scale padding and text relative to image size
-      const scale = Math.max(imageAreaWidth, imageAreaHeight) / 1000;
+      if (outputImageW > maxDimension || outputImageH > maxDimension) {
+        const scaleFactor = maxDimension / Math.max(outputImageW, outputImageH);
+        outputImageW = Math.round(outputImageW * scaleFactor);
+        outputImageH = Math.round(outputImageH * scaleFactor);
+      }
+      
+      // For zoom < 1, the image area shows the image smaller with background
+      let actualImageW = outputImageW;
+      let actualImageH = outputImageH;
+      
+      if (zoom < 1) {
+        // Image is scaled down in the preview
+        actualImageW = Math.round(outputImageW * zoom);
+        actualImageH = Math.round(outputImageH * zoom);
+      }
+      
+      // Scale padding and text relative to output size
+      const scale = Math.max(outputImageW, outputImageH) / 1000;
       const padding = Math.round(40 * scale);
       const textAreaHeight = Math.round(120 * scale);
       const borderRadius = Math.round(24 * scale);
       
-      const width = imageAreaWidth + padding * 2;
-      const height = imageAreaHeight + textAreaHeight + padding * 2;
+      const width = outputImageW + padding * 2;
+      const height = outputImageH + textAreaHeight + padding * 2;
       
       canvas.width = width;
       canvas.height = height;
@@ -353,17 +402,31 @@ export default function PhotoEditor() {
       ctx.fillStyle = "#ffffff";
       ctx.fill();
 
-      // Draw image area with rounded corners
+      // Draw image area background (for zoom < 1 where image doesn't fill)
       ctx.save();
-      roundRect(padding, padding, imageAreaWidth, imageAreaHeight, borderRadius);
+      roundRect(padding, padding, outputImageW, outputImageH, borderRadius);
       ctx.clip();
+      ctx.fillStyle = "#fafafa";
+      ctx.fillRect(padding, padding, outputImageW, outputImageH);
       
-      // Draw the image at full resolution
-      ctx.drawImage(
-        img, 
-        sourceX, sourceY, zoomedSourceW, zoomedSourceH,
-        padding, padding, imageAreaWidth, imageAreaHeight
-      );
+      // Draw the image
+      if (zoom < 1) {
+        // Center the smaller image
+        const offsetX = padding + (outputImageW - actualImageW) / 2;
+        const offsetY = padding + (outputImageH - actualImageH) / 2;
+        ctx.drawImage(
+          img, 
+          sourceX, sourceY, sourceW, sourceH,
+          offsetX, offsetY, actualImageW, actualImageH
+        );
+      } else {
+        // Normal draw
+        ctx.drawImage(
+          img, 
+          sourceX, sourceY, sourceW, sourceH,
+          padding, padding, outputImageW, outputImageH
+        );
+      }
       
       ctx.restore();
       
@@ -398,7 +461,7 @@ export default function PhotoEditor() {
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       
-      const titleY = imageAreaHeight + padding + textAreaHeight * 0.4;
+      const titleY = outputImageH + padding + textAreaHeight * 0.4;
       ctx.fillText(title || "Untitled", width / 2, titleY);
       
       if (textStyles.includes("underline")) {
@@ -412,11 +475,26 @@ export default function PhotoEditor() {
       }
 
       if (date) {
-        ctx.font = `${Math.round(18 * scale)}px ${fontFamily}`;
+        const dateFontWeight = dateStyles.includes("bold") ? "bold" : "normal";
+        const dateFontStyle = dateStyles.includes("italic") ? "italic" : "normal";
+        const dateFontSize = Math.round(18 * scale);
+        ctx.font = `${dateFontStyle} ${dateFontWeight} ${dateFontSize}px ${fontFamily}`;
         ctx.fillStyle = "#9ca3af";
-        ctx.fillText(new Date(date).toLocaleDateString("en-US", {
+        const dateText = new Date(date).toLocaleDateString("en-US", {
           year: "numeric", month: "long", day: "numeric",
-        }), width / 2, titleY + scaledFontSize * 0.8);
+        });
+        const dateY = titleY + scaledFontSize * 0.8;
+        ctx.fillText(dateText, width / 2, dateY);
+        
+        if (dateStyles.includes("underline")) {
+          const dateTextWidth = ctx.measureText(dateText).width;
+          ctx.beginPath();
+          ctx.moveTo((width - dateTextWidth) / 2, dateY + dateFontSize / 2 + 2 * scale);
+          ctx.lineTo((width + dateTextWidth) / 2, dateY + dateFontSize / 2 + 2 * scale);
+          ctx.strokeStyle = "#9ca3af";
+          ctx.lineWidth = 1 * scale;
+          ctx.stroke();
+        }
       }
 
       // Download as high quality PNG
@@ -424,13 +502,22 @@ export default function PhotoEditor() {
       link.download = `${(title || "photo").replace(/\s+/g, "_")}_hq.png`;
       link.href = canvas.toDataURL("image/png", 1.0);
       link.click();
+      
+      toast.success("Photo downloaded!", {
+        description: "Your retro photo has been saved",
+        duration: 3000,
+      });
     };
     img.src = image;
-  }, [title, textStyles, font, fontSize, date, textColor, filter, image, zoom, pan, applyFilter]);
+  }, [title, textStyles, dateStyles, font, fontSize, date, textColor, filter, image, zoom, pan, applyFilter]);
 
   const isBold = textStyles.includes("bold");
   const isItalic = textStyles.includes("italic");
   const isUnderline = textStyles.includes("underline");
+  
+  const isDateBold = dateStyles.includes("bold");
+  const isDateItalic = dateStyles.includes("italic");
+  const isDateUnderline = dateStyles.includes("underline");
 
   return (
     <TooltipProvider>
@@ -595,7 +682,7 @@ export default function PhotoEditor() {
                           <TooltipTrigger asChild>
                             <button
                               onClick={handleZoomIn}
-                              disabled={zoom >= 3}
+                              disabled={zoom >= 1.2}
                               className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-800 hover:bg-neutral-50 disabled:opacity-30 disabled:hover:bg-transparent transition-all"
                             >
                               <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -626,7 +713,10 @@ export default function PhotoEditor() {
                       {title || "Untitled"}
                     </h2>
                     {date && (
-                      <p className="text-[10px] sm:text-xs mt-2 sm:mt-3 text-neutral-400 font-medium tracking-wide" style={{ fontFamily: font }}>
+                      <p 
+                        className={`text-[10px] sm:text-xs mt-2 sm:mt-3 text-neutral-400 tracking-wide ${isDateBold ? 'font-bold' : 'font-medium'} ${isDateItalic ? 'italic' : ''} ${isDateUnderline ? 'underline' : ''}`}
+                        style={{ fontFamily: font }}
+                      >
                         {new Date(date).toLocaleDateString("en-US", {
                           year: "numeric", month: "long", day: "numeric",
                         })}
@@ -734,6 +824,36 @@ export default function PhotoEditor() {
                         onChange={(e) => setDate(e.target.value)}
                         className="h-10 sm:h-12 text-sm border-neutral-100 focus-visible:ring-neutral-200 bg-neutral-50/50 rounded-lg sm:rounded-xl"
                       />
+                      {date && (
+                        <div className="pt-2">
+                          <Label className="text-[10px] sm:text-[11px] font-medium text-neutral-400 uppercase tracking-widest mb-2 block">Date Style</Label>
+                          <ToggleGroup 
+                            type="multiple" 
+                            value={dateStyles}
+                            onValueChange={setDateStyles}
+                            className="justify-start gap-1.5 sm:gap-2"
+                          >
+                            <ToggleGroupItem 
+                              value="bold" 
+                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl border transition-all ${isDateBold ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 hover:border-neutral-300 text-neutral-500'}`}
+                            >
+                              <span className="font-bold text-sm">B</span>
+                            </ToggleGroupItem>
+                            <ToggleGroupItem 
+                              value="italic" 
+                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl border transition-all ${isDateItalic ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 hover:border-neutral-300 text-neutral-500'}`}
+                            >
+                              <span className="italic text-sm">I</span>
+                            </ToggleGroupItem>
+                            <ToggleGroupItem 
+                              value="underline" 
+                              className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl border transition-all ${isDateUnderline ? 'bg-neutral-900 text-white border-neutral-900' : 'border-neutral-200 hover:border-neutral-300 text-neutral-500'}`}
+                            >
+                              <span className="underline text-sm">U</span>
+                            </ToggleGroupItem>
+                          </ToggleGroup>
+                        </div>
+                      )}
                     </div>
                   </TabsContent>
 
