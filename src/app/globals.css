@@ -122,3 +122,11 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide native cursor on desktop when smooth cursor is active */
+@media (pointer: fine) {
+  .smooth-cursor-active,
+  .smooth-cursor-active * {
+    cursor: none !important;
+  }
+}
