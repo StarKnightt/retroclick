@@ -1,0 +1,20 @@
+{
+  "name": "RetroClick - Vintage Photo Editor",
+  "short_name": "RetroClick",
+  "description": "Transform your photos with beautiful retro film filters",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fafafa",
+  "theme_color": "#171717",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "categories": ["photo", "utilities", "lifestyle"],
+  "prefer_related_applications": false
+}
