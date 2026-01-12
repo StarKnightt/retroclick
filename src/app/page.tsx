@@ -276,43 +276,106 @@ export default function PhotoEditor() {
 
     const canvas = canvasRef.current;
     if (!canvas) return;
-    // Use willReadFrequently for better performance with getImageData
     const ctx = canvas.getContext("2d", { willReadFrequently: true });
     if (!ctx) return;
 
-    const padding = 24;
-    const imageAreaWidth = 400;
-    const imageAreaHeight = 300;
-    const textAreaHeight = 90;
-    const borderRadius = 16;
-    
-    const width = imageAreaWidth + padding * 2;
-    const height = imageAreaHeight + textAreaHeight + padding * 2;
-    
-    canvas.width = width;
-    canvas.height = height;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      // Use original image dimensions for high quality export
+      // Calculate the visible area based on zoom and pan
+      const previewBoxAspect = 4 / 3; // aspect ratio of the preview box
+      const imgAspect = img.width / img.height;
+      
+      let baseSourceW = img.width;
+      let baseSourceH = img.height;
+      let baseSourceX = 0;
+      let baseSourceY = 0;
+      
+      // Crop to match preview aspect ratio
+      if (imgAspect > previewBoxAspect) {
+        baseSourceW = img.height * previewBoxAspect;
+        baseSourceX = (img.width - baseSourceW) / 2;
+      } else {
+        baseSourceH = img.width / previewBoxAspect;
+        baseSourceY = (img.height - baseSourceH) / 2;
+      }
+      
+      // Apply zoom - smaller source area = more zoom
+      const zoomedSourceW = baseSourceW / zoom;
+      const zoomedSourceH = baseSourceH / zoom;
+      
+      // Apply pan offset (convert from screen coords to source coords)
+      const previewWidth = 400; // reference preview width for pan calculation
+      const previewHeight = 300;
+      const panRatioX = pan.x / previewWidth;
+      const panRatioY = pan.y / previewHeight;
+      
+      let sourceX = baseSourceX + (baseSourceW - zoomedSourceW) / 2 - panRatioX * zoomedSourceW;
+      let sourceY = baseSourceY + (baseSourceH - zoomedSourceH) / 2 - panRatioY * zoomedSourceH;
+      
+      // Clamp source coordinates to valid range
+      sourceX = Math.max(0, Math.min(sourceX, img.width - zoomedSourceW));
+      sourceY = Math.max(0, Math.min(sourceY, img.height - zoomedSourceH));
+      
+      // Use the actual cropped/zoomed dimensions for the output
+      const imageAreaWidth = Math.round(zoomedSourceW);
+      const imageAreaHeight = Math.round(zoomedSourceH);
+      
+      // Scale padding and text relative to image size
+      const scale = Math.max(imageAreaWidth, imageAreaHeight) / 1000;
+      const padding = Math.round(40 * scale);
+      const textAreaHeight = Math.round(120 * scale);
+      const borderRadius = Math.round(24 * scale);
+      
+      const width = imageAreaWidth + padding * 2;
+      const height = imageAreaHeight + textAreaHeight + padding * 2;
+      
+      canvas.width = width;
+      canvas.height = height;
 
-    const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
-      ctx.beginPath();
-      ctx.moveTo(x + r, y);
-      ctx.lineTo(x + w - r, y);
-      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-      ctx.lineTo(x + w, y + h - r);
-      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-      ctx.lineTo(x + r, y + h);
-      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-      ctx.lineTo(x, y + r);
-      ctx.quadraticCurveTo(x, y, x + r, y);
-      ctx.closePath();
-    };
+      const roundRect = (x: number, y: number, w: number, h: number, r: number) => {
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.lineTo(x + w - r, y);
+        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+        ctx.lineTo(x + w, y + h - r);
+        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        ctx.lineTo(x + r, y + h);
+        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+        ctx.lineTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.closePath();
+      };
 
-    // White background with rounded corners
-    roundRect(0, 0, width, height, 20);
-    ctx.fillStyle = "#ffffff";
-    ctx.fill();
+      // White background with rounded corners
+      roundRect(0, 0, width, height, Math.round(32 * scale));
+      ctx.fillStyle = "#ffffff";
+      ctx.fill();
 
-    const drawTextAndFinish = () => {
-      const fontSizeNum = parseInt(fontSize);
+      // Draw image area with rounded corners
+      ctx.save();
+      roundRect(padding, padding, imageAreaWidth, imageAreaHeight, borderRadius);
+      ctx.clip();
+      
+      // Draw the image at full resolution
+      ctx.drawImage(
+        img, 
+        sourceX, sourceY, zoomedSourceW, zoomedSourceH,
+        padding, padding, imageAreaWidth, imageAreaHeight
+      );
+      
+      ctx.restore();
+      
+      // Apply filter if any
+      if (filter !== "none") {
+        const imageData = ctx.getImageData(0, 0, width, height);
+        const filteredData = applyFilter(ctx, imageData, filter);
+        ctx.putImageData(filteredData, 0, 0);
+      }
+      
+      // Draw text
+      const scaledFontSize = Math.round(parseInt(fontSize) * scale * 2);
       const fontWeight = textStyles.includes("bold") ? "bold" : "normal";
       const fontStyle = textStyles.includes("italic") ? "italic" : "normal";
       
@@ -330,89 +393,37 @@ export default function PhotoEditor() {
       else if (font.includes("Shadows")) fontFamily = "Shadows Into Light, cursive";
       else if (font.includes("Indie")) fontFamily = "Indie Flower, cursive";
       
-      ctx.font = `${fontStyle} ${fontWeight} ${fontSizeNum}px ${fontFamily}`;
+      ctx.font = `${fontStyle} ${fontWeight} ${scaledFontSize}px ${fontFamily}`;
       ctx.fillStyle = textColor;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       
-      const titleY = imageAreaHeight + padding + 35;
+      const titleY = imageAreaHeight + padding + textAreaHeight * 0.4;
       ctx.fillText(title || "Untitled", width / 2, titleY);
       
       if (textStyles.includes("underline")) {
         const textWidth = ctx.measureText(title || "Untitled").width;
         ctx.beginPath();
-        ctx.moveTo((width - textWidth) / 2, titleY + fontSizeNum / 2 + 3);
-        ctx.lineTo((width + textWidth) / 2, titleY + fontSizeNum / 2 + 3);
+        ctx.moveTo((width - textWidth) / 2, titleY + scaledFontSize / 2 + 4 * scale);
+        ctx.lineTo((width + textWidth) / 2, titleY + scaledFontSize / 2 + 4 * scale);
         ctx.strokeStyle = textColor;
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2 * scale;
         ctx.stroke();
       }
 
       if (date) {
-        ctx.font = `13px ${fontFamily}`;
+        ctx.font = `${Math.round(18 * scale)}px ${fontFamily}`;
         ctx.fillStyle = "#9ca3af";
         ctx.fillText(new Date(date).toLocaleDateString("en-US", {
           year: "numeric", month: "long", day: "numeric",
-        }), width / 2, titleY + 30);
+        }), width / 2, titleY + scaledFontSize * 0.8);
       }
 
+      // Download as high quality PNG
       const link = document.createElement("a");
-      link.download = `${(title || "photo").replace(/\s+/g, "_")}.png`;
-      link.href = canvas.toDataURL("image/png");
+      link.download = `${(title || "photo").replace(/\s+/g, "_")}_hq.png`;
+      link.href = canvas.toDataURL("image/png", 1.0);
       link.click();
-    };
-
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      ctx.save();
-      
-      roundRect(padding, padding, imageAreaWidth, imageAreaHeight, borderRadius);
-      ctx.clip();
-      
-      // Calculate source area based on zoom and pan
-      const imgAspect = img.width / img.height;
-      const boxAspect = imageAreaWidth / imageAreaHeight;
-      
-      let baseSourceW = img.width;
-      let baseSourceH = img.height;
-      let baseSourceX = 0;
-      let baseSourceY = 0;
-      
-      if (imgAspect > boxAspect) {
-        baseSourceW = img.height * boxAspect;
-        baseSourceX = (img.width - baseSourceW) / 2;
-      } else {
-        baseSourceH = img.width / boxAspect;
-        baseSourceY = (img.height - baseSourceH) / 2;
-      }
-      
-      // Apply zoom - smaller source area = more zoom
-      const zoomedSourceW = baseSourceW / zoom;
-      const zoomedSourceH = baseSourceH / zoom;
-      
-      // Apply pan offset (convert from screen coords to source coords)
-      const panRatioX = pan.x / imageAreaWidth;
-      const panRatioY = pan.y / imageAreaHeight;
-      
-      const sourceX = baseSourceX + (baseSourceW - zoomedSourceW) / 2 - panRatioX * zoomedSourceW;
-      const sourceY = baseSourceY + (baseSourceH - zoomedSourceH) / 2 - panRatioY * zoomedSourceH;
-      
-      ctx.drawImage(
-        img, 
-        sourceX, sourceY, zoomedSourceW, zoomedSourceH,
-        padding, padding, imageAreaWidth, imageAreaHeight
-      );
-      
-      ctx.restore();
-      
-      if (filter !== "none") {
-        const imageData = ctx.getImageData(0, 0, width, height);
-        const filteredData = applyFilter(ctx, imageData, filter);
-        ctx.putImageData(filteredData, 0, 0);
-      }
-      
-      drawTextAndFinish();
     };
     img.src = image;
   }, [title, textStyles, font, fontSize, date, textColor, filter, image, zoom, pan, applyFilter]);
