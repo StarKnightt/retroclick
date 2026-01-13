@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { SmoothCursor } from "@/components/smooth-cursor";
 import { toast } from "sonner";
+import { playClick, playPop, playShutter, playSuccess, playUpload } from "@/lib/sounds";
 
 const PRESET_COLORS = [
   "#0f0f0f", "#E74C3C", "#E67E22", "#F1C40F", "#2ECC71",
@@ -72,6 +73,7 @@ export default function PhotoEditor() {
   const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      playUpload();
       const reader = new FileReader();
       reader.onload = (event) => {
         setImage(event.target?.result as string);
@@ -84,6 +86,7 @@ export default function PhotoEditor() {
   }, []);
 
   const handleReset = useCallback(() => {
+    playPop();
     setTitle("My Photo");
     setTextStyles([]);
     setDateStyles([]);
@@ -100,14 +103,17 @@ export default function PhotoEditor() {
 
   // Zoom handlers
   const handleZoomIn = useCallback(() => {
+    playClick();
     setZoom(prev => Math.min(prev + 0.1, 1.2));
   }, []);
 
   const handleZoomOut = useCallback(() => {
+    playClick();
     setZoom(prev => Math.max(prev - 0.1, 0.5));
   }, []);
 
   const handleZoomReset = useCallback(() => {
+    playPop();
     setZoom(1);
     setPan({ x: 0, y: 0 });
   }, []);
@@ -498,10 +504,13 @@ export default function PhotoEditor() {
       }
 
       // Download as high quality PNG
+      playShutter();
       const link = document.createElement("a");
       link.download = `${(title || "photo").replace(/\s+/g, "_")}_hq.png`;
       link.href = canvas.toDataURL("image/png", 1.0);
       link.click();
+      
+      setTimeout(() => playSuccess(), 200);
       
       toast.success("Photo downloaded!", {
         description: "Your retro photo has been saved",
@@ -742,7 +751,7 @@ export default function PhotoEditor() {
 
             {/* Right: Controls - Scrollable on mobile */}
             <div className="flex-1 lg:flex-none lg:w-[380px] shrink-0 border-t lg:border-t-0 lg:border-l border-neutral-100 bg-white flex flex-col overflow-hidden">
-              <Tabs defaultValue="text" className="flex-1 flex flex-col min-h-0">
+              <Tabs defaultValue="text" className="flex-1 flex flex-col min-h-0" onValueChange={() => playClick()}>
                 <TabsList className="w-full justify-start rounded-none border-b border-neutral-100 bg-transparent p-0 h-auto shrink-0">
                   <TabsTrigger 
                     value="text" 
@@ -792,7 +801,7 @@ export default function PhotoEditor() {
                       <ToggleGroup 
                         type="multiple" 
                         value={textStyles}
-                        onValueChange={setTextStyles}
+                        onValueChange={(v) => { playClick(); setTextStyles(v); }}
                         className="justify-start gap-1.5 sm:gap-2"
                       >
                         <ToggleGroupItem 
@@ -830,7 +839,7 @@ export default function PhotoEditor() {
                           <ToggleGroup 
                             type="multiple" 
                             value={dateStyles}
-                            onValueChange={setDateStyles}
+                            onValueChange={(v) => { playClick(); setDateStyles(v); }}
                             className="justify-start gap-1.5 sm:gap-2"
                           >
                             <ToggleGroupItem 
@@ -861,7 +870,7 @@ export default function PhotoEditor() {
                   <TabsContent value="style" className="m-0 p-4 sm:p-6 space-y-5 sm:space-y-7">
                     <div className="space-y-2 sm:space-y-3">
                       <Label className="text-[10px] sm:text-[11px] font-medium text-neutral-400 uppercase tracking-widest">Font</Label>
-                      <Select value={font} onValueChange={setFont}>
+                      <Select value={font} onValueChange={(v) => { playPop(); setFont(v); }}>
                         <SelectTrigger className="h-10 sm:h-12 text-sm font-medium border-neutral-100 bg-neutral-50/50 rounded-lg sm:rounded-xl">
                           <SelectValue />
                         </SelectTrigger>
@@ -897,7 +906,7 @@ export default function PhotoEditor() {
                           <Tooltip key={color}>
                             <TooltipTrigger asChild>
                               <button
-                                onClick={() => setTextColor(color)}
+                                onClick={() => { playPop(); setTextColor(color); }}
                                 className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl transition-all duration-200 hover:scale-105 ${
                                   textColor === color 
                                     ? "ring-2 ring-offset-2 ring-neutral-300 scale-105" 
@@ -934,7 +943,7 @@ export default function PhotoEditor() {
                       {FILTERS.map((f) => (
                         <button
                           key={f.name}
-                          onClick={() => setFilter(f.value)}
+                          onClick={() => { playPop(); setFilter(f.value); }}
                           className={`flex flex-col items-center gap-1.5 sm:gap-2.5 p-1.5 sm:p-2.5 rounded-xl sm:rounded-2xl transition-all duration-200 hover:bg-neutral-50 ${
                             filter === f.value 
                               ? "bg-neutral-50 ring-1 ring-neutral-200" 
